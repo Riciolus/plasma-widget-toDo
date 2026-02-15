@@ -21,24 +21,27 @@ PlasmoidItem {
     ---------------------------*/
 
     function persistModel() {
-        let arr = []
+    let arr = []
 
-        for (let i = 0; i < todoModel.count; i++) {
-            const item = todoModel.get(i)
-            arr.push({
-                text: item.text,
-                done: item.done
-            })
-        }
+    for (let i = 0; i < todoModel.count; i++) {
+        const item = todoModel.get(i)
 
-        plasmoid.configuration.todos = JSON.stringify(arr)
-        plasmoid.configuration.writeConfig()
+        arr.push({
+            text: item.text,
+            done: item.done,
+            type: item.type,
+            lastCompleted: item.lastCompleted
+        })
     }
+
+    plasmoid.configuration.todos = JSON.stringify(arr)
+    plasmoid.configuration.writeConfig()
+}
+
 
     function loadModel() {
     try {
-        if (!item.type) item.type = "one"
-        if (!item.lastCompleted) item.lastCompleted = ""
+       
 
 
         const raw = plasmoid.configuration.todos
@@ -51,6 +54,9 @@ PlasmoidItem {
 
         for (let i = 0; i < parsed.length; i++) {
             let item = parsed[i]
+
+             if (!item.type) item.type = "one"
+            if (!item.lastCompleted) item.lastCompleted = ""
 
             // Reset daily tasks if day changed
             if (item.type === "daily") {
@@ -199,8 +205,8 @@ PlasmoidItem {
                 height: 1
                 radius: 1
                 color: Qt.rgba(1, 1, 1, 0.12)
-                Layout.topMargin: 4
-                Layout.bottomMargin: 5
+                Layout.topMargin: 2
+                Layout.bottomMargin: 4
             }
 
             Item {
@@ -221,53 +227,76 @@ PlasmoidItem {
                     clip: true
                     spacing: 4
 
-                    delegate: ItemDelegate {
-                        width: listView.width
-                        padding: 10
+                    delegate: Item {
+    width: listView.width
+    implicitHeight: row.implicitHeight + 10
 
-                        background: Rectangle {
-                            radius: 10
-                            border.width: 1
-                            border.color: Qt.rgba(1, 1, 1, 0.14)
-                            color: "transparent"
-                        }
+    Column {
+        width: parent.width
+        spacing: 6
 
-                        contentItem: RowLayout {
-                            spacing: 8
+        RowLayout {
+            id: row
+            width: parent.width
+            spacing: 8
 
-                            CheckBox {
-                                checked: model.done
-                                onToggled: {
-                                    const today = new Date().toISOString().slice(0, 10)
+            CheckBox {
+                checked: model.done
+                Layout.alignment: Qt.AlignTop
 
-                                    todoModel.setProperty(index, "done", checked)
+                onToggled: {
+                    const today = new Date().toISOString().slice(0, 10)
 
-                                    if (checked && model.type === "daily") {
-                                        todoModel.setProperty(index, "lastCompleted", today)
-                                    }
+                    todoModel.setProperty(index, "done", checked)
 
-                                    persistModel()
-                                }
-                            }
-
-                            Label {
-                                text: model.text
-                                Layout.fillWidth: true
-                                elide: Text.ElideRight
-                                font.strikeout: model.done
-                                opacity: model.done ? 0.5 : 1.0
-                                verticalAlignment: Text.AlignVCenter
-                            }
-
-                            ToolButton {
-                                icon.name: "edit-delete"
-                                onClicked: {
-                                    todoModel.remove(index)
-                                    persistModel()
-                                }
-                            }
-                        }
+                    if (checked && model.type === "daily") {
+                        todoModel.setProperty(index, "lastCompleted", today)
                     }
+
+                    persistModel()
+                }
+            }
+
+            Column {
+                Layout.fillWidth: true
+                spacing: 2
+
+                Label {
+                    text: model.text
+                    elide: Text.ElideRight
+                    font.strikeout: model.done
+                    opacity: model.done ? 0.5 : 1
+                    horizontalAlignment: Text.AlignLeft
+                }
+
+                Label {
+                    text: model.type === "daily" ? "Daily" : "One Time"
+                    font.pointSize: 8
+                    opacity: 0.6
+                    horizontalAlignment: Text.AlignLeft
+                }
+            }
+
+            ToolButton {
+                icon.name: "edit-delete"
+                Layout.alignment: Qt.AlignRight | Qt.AlignTop
+
+                onClicked: {
+                    todoModel.remove(index)
+                    persistModel()
+                }
+            }
+        }
+
+        Rectangle {
+            width: parent.width
+            height: 1
+            color: Qt.rgba(1, 1, 1, 0.10)
+            visible: index !== todoModel.count - 1
+        }
+    }
+}
+
                 }
             }
         }
