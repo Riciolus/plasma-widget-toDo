@@ -9,6 +9,7 @@ PlasmoidItem {
 
     preferredRepresentation: compactRepresentation
 
+
     /* --------------------------
        DATA MODEL
     ---------------------------*/
@@ -86,7 +87,7 @@ PlasmoidItem {
         width: Kirigami.Units.gridUnit * 2
         height: Kirigami.Units.gridUnit * 2
 
-        Kirigami.Icon {
+        Kirigami.Icon { 
             anchors.fill: parent
             source: "view-pim-tasks"
             active: root.expanded
@@ -103,8 +104,13 @@ PlasmoidItem {
     ---------------------------*/
 
     fullRepresentation: Frame {
-        width: Kirigami.Units.gridUnit * 20
-        height: Kirigami.Units.gridUnit * 25
+            id: fullRoot
+
+    implicitWidth: Kirigami.Units.gridUnit * 60
+    implicitHeight: Kirigami.Units.gridUnit * 40
+
+    Layout.minimumWidth: implicitWidth
+    Layout.minimumHeight: implicitHeight
         padding: 14
 
         background: Rectangle {
@@ -192,113 +198,163 @@ PlasmoidItem {
 
 
 
-            Label {
-                text: "Your To Do:"
-                font.bold: true
-                font.pointSize: 11
-                opacity: 0.85
-                Layout.topMargin: 4
-            }
-
-            Rectangle {
-                Layout.fillWidth: true
-                height: 1
-                radius: 1
-                color: Qt.rgba(1, 1, 1, 0.12)
-                Layout.topMargin: 2
-                Layout.bottomMargin: 4
-            }
+          
+           
 
             Item {
+    Layout.fillWidth: true
+    Layout.fillHeight: true
+
+    RowLayout {
+        anchors.fill: parent
+        spacing: 20
+
+        // =========================
+        // Daily (LEFT)
+        // =========================
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+
+            Label {
+                text: "Daily"
+                font.bold: true
+                opacity: 0.8
+            }
+
+            ListView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                model: todoModel
+                clip: true
+                spacing: 4
 
-                Label {
-                    anchors.centerIn: parent
-                    text: "No tasks yet 🎉"
-                    visible: todoModel.count === 0
-                    opacity: 0.5
-                }
+                delegate: Item {
+                    visible: model.type === "daily"
+                    width: parent.width
+                    implicitHeight: visible ? row.implicitHeight + 10 : 0
 
-                ListView {
-                    id: listView
-                    anchors.fill: parent
-                    model: todoModel
-                    clip: true
-                    spacing: 4
+                    RowLayout {
+                        id: row
+                        width: parent.width
+                        spacing: 8
 
-                    delegate: Item {
-    width: listView.width
-    implicitHeight: row.implicitHeight + 10
+                        CheckBox {
+                            checked: model.done
 
-    Column {
-        width: parent.width
-        spacing: 6
+                            onToggled: {
+                                todoModel.setProperty(index, "done", checked)
+                                persistModel()
+                            }
+                        }
 
-        RowLayout {
-            id: row
-            width: parent.width
-            spacing: 8
+                        Label {
+                            text: model.text
+                            Layout.fillWidth: true
+                            font.strikeout: model.done
+                            opacity: model.done ? 0.5 : 1
+                        }
 
-            CheckBox {
-                checked: model.done
-                Layout.alignment: Qt.AlignTop
-
-                onToggled: {
-                    const today = new Date().toISOString().slice(0, 10)
-
-                    todoModel.setProperty(index, "done", checked)
-
-                    if (checked && model.type === "daily") {
-                        todoModel.setProperty(index, "lastCompleted", today)
+                        ToolButton {
+                            icon.name: "edit-delete"
+                            onClicked: {
+                                todoModel.remove(index)
+                                persistModel()
+                            }
+                        }
                     }
 
-                    persistModel()
-                }
-            }
-
-            Column {
-                Layout.fillWidth: true
-                spacing: 2
-
-                Label {
-                    text: model.text
-                    elide: Text.ElideRight
-                    font.strikeout: model.done
-                    opacity: model.done ? 0.5 : 1
-                    horizontalAlignment: Text.AlignLeft
-                }
-
-                Label {
-                    text: model.type === "daily" ? "Daily" : "One Time"
-                    font.pointSize: 8
-                    opacity: 0.6
-                    horizontalAlignment: Text.AlignLeft
-                }
-            }
-
-            ToolButton {
-                icon.name: "edit-delete"
-                Layout.alignment: Qt.AlignRight | Qt.AlignTop
-
-                onClicked: {
-                    todoModel.remove(index)
-                    persistModel()
+                    Rectangle {
+                        anchors.bottom: parent.bottom
+                        width: parent.width
+                        height: 1
+                        color: Qt.rgba(1, 1, 1, 0.10)
+                    }
                 }
             }
         }
 
+        // Vertical Divider
         Rectangle {
-            width: parent.width
-            height: 1
+            width: 1
+            Layout.fillHeight: true
             color: Qt.rgba(1, 1, 1, 0.10)
-            visible: index !== todoModel.count - 1
+        }
+
+        // =========================
+        // One time (RIGHT)
+        // =========================
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+
+            Label {
+                text: "One Time"
+                font.bold: true
+                opacity: 0.8
+            }
+
+            ListView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                model: todoModel
+                clip: true
+                spacing: 4
+
+                delegate: Item {
+                    visible: model.type === "one"
+                    width: parent.width
+                    implicitHeight: visible ? row.implicitHeight + 10 : 0
+
+                    RowLayout {
+                        id: row
+                        width: parent.width
+                        spacing: 8
+
+                        CheckBox {
+                            checked: model.done
+
+                            onToggled: {
+                                const today = new Date().toISOString().slice(0, 10)
+
+                                todoModel.setProperty(index, "done", checked)
+
+                                if (checked) {
+                                    todoModel.setProperty(index, "lastCompleted", today)
+                                }
+
+                                persistModel()
+                            }
+                        }
+
+                        Label {
+                            text: model.text
+                            Layout.fillWidth: true
+                            font.strikeout: model.done
+                            opacity: model.done ? 0.5 : 1
+                        }
+
+                        ToolButton {
+                            icon.name: "edit-delete"
+                            onClicked: {
+                                todoModel.remove(index)
+                                persistModel()
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        anchors.bottom: parent.bottom
+                        width: parent.width
+                        height: 1
+                        color: Qt.rgba(1, 1, 1, 0.10)
+                    }
+                }
+            }
         }
     }
 }
 
-                }
-            }
         }
     }
 }
