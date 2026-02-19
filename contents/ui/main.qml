@@ -20,7 +20,6 @@ PlasmoidItem {
     /* --------------------------
        PERSISTENCE
     ---------------------------*/
-
     function persistModel() {
     let arr = []
 
@@ -38,6 +37,38 @@ PlasmoidItem {
     plasmoid.configuration.todos = JSON.stringify(arr)
     plasmoid.configuration.writeConfig()
 }
+
+    function reorderTasks() {
+    let undone = []
+    let done = []
+
+    for (let i = 0; i < todoModel.count; i++) {
+        const item = todoModel.get(i)
+
+        const plainItem = {
+            text: item.text,
+            done: item.done,
+            type: item.type,
+            lastCompleted: item.lastCompleted
+        }
+
+        if (item.done) {
+            done.push(plainItem)
+        } else {
+            undone.push(plainItem)
+        }
+    }
+
+    todoModel.clear()
+
+    for (let i = 0; i < undone.length; i++)
+        todoModel.append(undone[i])
+
+    for (let i = 0; i < done.length; i++)
+        todoModel.append(done[i])
+}
+
+
 
 
     function loadModel() {
@@ -142,7 +173,7 @@ PlasmoidItem {
             radius: 14
             color: "#222222"
             border.width: 1
-            border.color: input.activeFocus ? "#4C8DFF" : "#444444"
+            border.color: input.activeFocus ? "#c3ff4c" : "#444444"
         }
 
         color: "white"
@@ -191,7 +222,7 @@ PlasmoidItem {
             radius: 14
             color: "#222222"
             border.width: 1
-            border.color: typeSelector.activeFocus ? "#4C8DFF" : "#444444"
+            border.color: typeSelector.activeFocus ? "#c3ff4c" : "#444444"
         }
     }
 }
@@ -231,7 +262,7 @@ PlasmoidItem {
 
                 delegate: Item {
                     visible: model.type === "daily"
-                    width: parent.width
+                    width: ListView.view.width
                     implicitHeight: visible ? row.implicitHeight + 10 : 0
 
                     RowLayout {
@@ -244,6 +275,8 @@ PlasmoidItem {
 
                             onToggled: {
                                 todoModel.setProperty(index, "done", checked)
+
+                                reorderTasks()
                                 persistModel()
                             }
                         }
@@ -303,7 +336,7 @@ PlasmoidItem {
 
                 delegate: Item {
                     visible: model.type === "one"
-                    width: parent.width
+                    width: ListView.view.width
                     implicitHeight: visible ? row.implicitHeight + 10 : 0
 
                     RowLayout {
@@ -323,6 +356,7 @@ PlasmoidItem {
                                     todoModel.setProperty(index, "lastCompleted", today)
                                 }
 
+                                reorderTasks()
                                 persistModel()
                             }
                         }
