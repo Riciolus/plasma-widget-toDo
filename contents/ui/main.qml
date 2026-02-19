@@ -14,7 +14,11 @@ PlasmoidItem {
        DATA MODEL
     ---------------------------*/
     ListModel {
-        id: todoModel
+        id: dailyModel
+    }
+
+    ListModel {
+        id: oneTimeModel
     }
 
     /* --------------------------
@@ -23,20 +27,18 @@ PlasmoidItem {
     function persistModel() {
     let arr = []
 
-    for (let i = 0; i < todoModel.count; i++) {
-        const item = todoModel.get(i)
+    for (let i = 0; i < dailyModel.count; i++) {
+        arr.push(dailyModel.get(i))
+    }
 
-        arr.push({
-            text: item.text,
-            done: item.done,
-            type: item.type,
-            lastCompleted: item.lastCompleted
-        })
+    for (let i = 0; i < oneTimeModel.count; i++) {
+        arr.push(oneTimeModel.get(i))
     }
 
     plasmoid.configuration.todos = JSON.stringify(arr)
     plasmoid.configuration.writeConfig()
 }
+
 
     function reorderTasks() {
     let undone = []
@@ -97,7 +99,11 @@ PlasmoidItem {
                 }
             }
 
-            todoModel.append(item)
+            if (item.type === "daily") {
+            dailyModel.append(item)
+        } else {
+            oneTimeModel.append(item)
+        }
         }
 
     } catch (e) {
@@ -154,85 +160,87 @@ PlasmoidItem {
             spacing: 10
 
             RowLayout {
-    Layout.fillWidth: true
-    Layout.preferredHeight: implicitHeight
-    spacing: 8
+            Layout.fillWidth: true
+            Layout.preferredHeight: implicitHeight
+            spacing: 8
 
-    TextField {
-        id: input
-        placeholderText: "Add new task..."
-        Layout.fillWidth: true
-        Layout.preferredWidth: 3
+            TextField {
+                id: input
+                placeholderText: "Add new task..."
+                Layout.fillWidth: true
+                Layout.preferredWidth: 3
 
-        focus: true
+                focus: true
+                padding: 10
 
+                background: Rectangle {
+                    radius: 14
+                    color: "#222222"
+                    border.width: 1
+                    border.color: input.activeFocus ? "#c3ff4c" : "#444444"
+                }
 
-  padding: 10
+                color: "white"
+                placeholderTextColor: "#aaaaaa"
 
-        background: Rectangle {
-            radius: 14
-            color: "#222222"
-            border.width: 1
-            border.color: input.activeFocus ? "#c3ff4c" : "#444444"
+                onAccepted: {
+                    console.log("ENTER HIT")
+
+            const trimmed = text.trim()
+            if (trimmed === "") return
+
+            const selectedType =
+                typeSelector.currentIndex === 1 ? "daily" : "one"
+
+            if (selectedType === "daily") {
+            dailyModel.append({
+                text: trimmed,
+                done: false,
+                type: "daily",
+                lastCompleted: ""
+            })
+        } else {
+            oneTimeModel.append({
+                text: trimmed,
+                done: false,
+                type: "one",
+                lastCompleted: ""
+            })
         }
 
-        color: "white"
-        placeholderTextColor: "#aaaaaa"
-
-        onAccepted: {
-            console.log("ENTER HIT")
-
-    const trimmed = text.trim()
-    if (trimmed === "") return
-
-    const selectedType =
-        typeSelector.currentIndex === 1 ? "daily" : "one"
-
-    todoModel.append({
-        text: trimmed,
-        done: false,
-        type: selectedType,
-        lastCompleted: ""
-    })
-
-    persistModel()
-    text = ""
-}
-
-    }
-
-    ComboBox {
-        id: typeSelector
-        Layout.fillWidth: true
-        Layout.preferredWidth: 1
-
-        implicitHeight: input.implicitHeight
-
-        model: ["One Time", "Daily"]
-
-        contentItem: Text {
-            text: typeSelector.displayText
-            color: "white"
-            verticalAlignment: Text.AlignVCenter
-            elide: Text.ElideRight
-            leftPadding: 10
+            persistModel()
+            text = ""
         }
 
-        background: Rectangle {
-            radius: 14
-            color: "#222222"
-            border.width: 1
-            border.color: typeSelector.activeFocus ? "#c3ff4c" : "#444444"
+            }
+
+            ComboBox {
+                id: typeSelector
+                Layout.fillWidth: true
+                Layout.preferredWidth: 1
+
+                implicitHeight: input.implicitHeight
+
+                model: ["One Time", "Daily"]
+
+                contentItem: Text {
+                    text: typeSelector.displayText
+                    color: "white"
+                    verticalAlignment: Text.AlignVCenter
+                    elide: Text.ElideRight
+                    leftPadding: 10
+                }
+
+                background: Rectangle {
+                    radius: 14
+                    color: "#222222"
+                    border.width: 1
+                    border.color: typeSelector.activeFocus ? "#c3ff4c" : "#444444"
+                }
+            }
         }
-    }
-}
 
-
-
-          
-           
-
-            Item {
+        Item {
     Layout.fillWidth: true
     Layout.fillHeight: true
 
@@ -241,7 +249,7 @@ PlasmoidItem {
         spacing: 20
 
         // =========================
-        // Daily (LEFT)
+        // DAILY (LEFT)
         // =========================
         ColumnLayout {
             Layout.fillWidth: true
@@ -256,14 +264,13 @@ PlasmoidItem {
             ListView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                model: todoModel
+                model: dailyModel
                 clip: true
                 spacing: 4
 
                 delegate: Item {
-                    visible: model.type === "daily"
                     width: ListView.view.width
-                    implicitHeight: visible ? row.implicitHeight + 10 : 0
+                    implicitHeight: row.implicitHeight + 10
 
                     RowLayout {
                         id: row
@@ -274,9 +281,7 @@ PlasmoidItem {
                             checked: model.done
 
                             onToggled: {
-                                todoModel.setProperty(index, "done", checked)
-
-                                reorderTasks()
+                                dailyModel.setProperty(index, "done", checked)
                                 persistModel()
                             }
                         }
@@ -288,13 +293,57 @@ PlasmoidItem {
                             opacity: model.done ? 0.5 : 1
                         }
 
-                        ToolButton {
-                            icon.name: "edit-delete"
-                            onClicked: {
-                                todoModel.remove(index)
-                                persistModel()
-                            }
-                        }
+                       RowLayout {
+    spacing: 2   // tighter gap
+
+    ToolButton {
+        icon.name: "go-up"
+        enabled: index > 0
+
+        Layout.preferredWidth: 24
+        Layout.preferredHeight: 24
+
+        icon.width: 14
+        icon.height: 14
+
+        onClicked: {
+            dailyModel.move(index, index - 1, 1)
+            persistModel()
+        }
+    }
+
+    ToolButton {
+        icon.name: "go-down"
+        enabled: index < dailyModel.count - 1
+
+        Layout.preferredWidth: 24
+        Layout.preferredHeight: 24
+
+        icon.width: 14
+        icon.height: 14
+
+        onClicked: {
+            dailyModel.move(index, index + 1, 1)
+            persistModel()
+        }
+    }
+
+    ToolButton {
+        icon.name: "edit-delete"
+
+        Layout.preferredWidth: 24
+        Layout.preferredHeight: 24
+
+        icon.width: 14
+        icon.height: 14
+
+        onClicked: {
+            dailyModel.remove(index)
+            persistModel()
+        }
+    }
+}
+
                     }
 
                     Rectangle {
@@ -307,7 +356,7 @@ PlasmoidItem {
             }
         }
 
-        // Vertical Divider
+        // Divider
         Rectangle {
             width: 1
             Layout.fillHeight: true
@@ -315,7 +364,7 @@ PlasmoidItem {
         }
 
         // =========================
-        // One time (RIGHT)
+        // ONE TIME (RIGHT)
         // =========================
         ColumnLayout {
             Layout.fillWidth: true
@@ -330,14 +379,13 @@ PlasmoidItem {
             ListView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                model: todoModel
+                model: oneTimeModel
                 clip: true
                 spacing: 4
 
                 delegate: Item {
-                    visible: model.type === "one"
                     width: ListView.view.width
-                    implicitHeight: visible ? row.implicitHeight + 10 : 0
+                    implicitHeight: row.implicitHeight + 10
 
                     RowLayout {
                         id: row
@@ -348,15 +396,7 @@ PlasmoidItem {
                             checked: model.done
 
                             onToggled: {
-                                const today = new Date().toISOString().slice(0, 10)
-
-                                todoModel.setProperty(index, "done", checked)
-
-                                if (checked) {
-                                    todoModel.setProperty(index, "lastCompleted", today)
-                                }
-
-                                reorderTasks()
+                                oneTimeModel.setProperty(index, "done", checked)
                                 persistModel()
                             }
                         }
@@ -368,13 +408,57 @@ PlasmoidItem {
                             opacity: model.done ? 0.5 : 1
                         }
 
+                        RowLayout {
+                        spacing: 2   // tighter gap
+
                         ToolButton {
-                            icon.name: "edit-delete"
+                            icon.name: "go-up"
+                            enabled: index > 0
+
+                            Layout.preferredWidth: 24
+                            Layout.preferredHeight: 24
+
+                            icon.width: 16
+                            icon.height: 16
+
                             onClicked: {
-                                todoModel.remove(index)
+                                oneTimeModel.move(index, index - 1, 1)
                                 persistModel()
                             }
                         }
+
+                        ToolButton {
+                            icon.name: "go-down"
+                            enabled: index < oneTimeModel.count - 1
+
+                            Layout.preferredWidth: 24
+                            Layout.preferredHeight: 24
+
+                            icon.width: 16
+                            icon.height: 16
+
+                            onClicked: {
+                                oneTimeModel.move(index, index + 1, 1)
+                                persistModel()
+                            }
+                        }
+
+                        ToolButton {
+                            icon.name: "edit-delete"
+
+                            Layout.preferredWidth: 24
+                            Layout.preferredHeight: 24
+
+                            icon.width: 16
+                            icon.height: 16
+
+                            onClicked: {
+                                oneTimeModel.remove(index)
+                                persistModel()
+                            }
+                        }
+                    }
+
                     }
 
                     Rectangle {
@@ -388,6 +472,7 @@ PlasmoidItem {
         }
     }
 }
+
 
         }
     }
